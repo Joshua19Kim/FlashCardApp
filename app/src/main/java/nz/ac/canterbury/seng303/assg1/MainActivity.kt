@@ -3,6 +3,7 @@ package nz.ac.canterbury.seng303.assg1
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -22,6 +24,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -29,12 +32,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import nz.ac.canterbury.seng303.assg1.models.Card
 import nz.ac.canterbury.seng303.assg1.screens.CardListScreen
 import nz.ac.canterbury.seng303.assg1.screens.CreateCardScreen
 import nz.ac.canterbury.seng303.assg1.screens.EditCardScreen
 import nz.ac.canterbury.seng303.assg1.ui.theme.Assg1Theme
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
+import nz.ac.canterbury.seng303.lab2.R
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 
@@ -118,6 +121,15 @@ fun Home(navController: NavController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+//        Image(
+//            painter = painterResource(id = R.drawable.note_bw),
+//            contentDescription = "App Icon",
+//            modifier = Modifier.size(100.dp)
+//        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+
         Button(onClick = { navController.navigate("CreateCard") }) {
             Text("Create Flash Card")
         }

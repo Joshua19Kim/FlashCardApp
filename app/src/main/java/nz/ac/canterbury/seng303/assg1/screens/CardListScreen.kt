@@ -15,8 +15,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nz.ac.canterbury.seng303.assg1.models.Card
 import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
@@ -29,6 +34,7 @@ fun CardListScreen(
     onEditCardClick: (Int) -> Unit
 ) {
     val cards by viewModel.cards.collectAsState()
+    var cardToDelete by remember { mutableStateOf<Card?>(null) }
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -44,13 +50,36 @@ fun CardListScreen(
                 items(cards) { card ->
                     CardItem(
                         card = card,
-                        onDelete = { viewModel.deleteCard(card.id) },
+                        onDelete = { cardToDelete = card },
                         onEdit = { onEditCardClick(card.id) }
                     )
                 }
             }
         }
     }
+    cardToDelete?.let { card ->
+        AlertDialog(
+            onDismissRequest = { cardToDelete = null },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete the card: ${card.title}?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteCard(card.id)
+                        cardToDelete = null
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { cardToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
 }
 
 @Composable
