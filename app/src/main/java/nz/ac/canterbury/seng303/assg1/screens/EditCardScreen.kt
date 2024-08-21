@@ -1,117 +1,117 @@
 package nz.ac.canterbury.seng303.assg1.screens
 
-import android.app.AlertDialog
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import nz.ac.canterbury.seng303.assg1.models.Card
-import nz.ac.canterbury.seng303.assg1.util.convertTimestampToReadableTime
-import nz.ac.canterbury.seng303.assg1.viewmodels.EditCardViewModel
-import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
+import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditCard(
-    CardId: String,
-    editCardViewModel: EditCardViewModel,
-    cardViewModel: CardViewModel,
-    navController: NavController
+fun EditCardScreen(
+    card: Card,
+    onCardEdited: () -> Unit,
+    viewModel: CreateCardViewModel = koinViewModel(),
 ) {
-    val context = LocalContext.current
-    val selectedCardState by cardViewModel.selectedCard.collectAsState(null)
-    val card: Card? = selectedCardState // we explicitly assign to Card to help the compilers smart cast out
-
-    LaunchedEffect(card) {  // Get the default values for the Card properties
-        if (card == null) {
-            cardViewModel.getCardById(CardId.toIntOrNull())
-        } else {
-            editCardViewModel.setDefaultValues(card)
-        }
+    LaunchedEffect(card) {
+        viewModel.initializeWithCard(card)
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
-        OutlinedTextField(
-            value = editCardViewModel.title,
-            onValueChange = { editCardViewModel.updateTitle(it) },
-            label = { Text("title") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
+        Text(
+            text = "Edit flash card",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
+
         OutlinedTextField(
-            value = editCardViewModel.content,
-            onValueChange = { editCardViewModel.updateContent(it) },
-            label = { Text("Content") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-                .fillMaxHeight()
-                .weight(1f)
-        )
-        OutlinedTextField(
-            value = convertTimestampToReadableTime(editCardViewModel.timestamp),
-            onValueChange = { },
-            label = { Text("Timestamp") },
-            enabled = false,
+            value = viewModel.title,
+            onValueChange = { viewModel.updateTitle(it) },
+            label = { Text("Question") },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         )
-        Row(
+
+        viewModel.options.forEachIndexed { index, option ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = index in viewModel.correctOptionIndices,
+                    onCheckedChange = { viewModel.toggleCorrectOption(index) }
+                )
+                OutlinedTextField(
+                    value = option,
+                    onValueChange = { viewModel.updateOption(index, it) },
+                    label = { Text("Option ${index + 1}") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                )
+                IconButton(
+                    onClick = { viewModel.deleteOption(index) },
+                    enabled = viewModel.canDeleteOption()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete option",
+                        tint = if (viewModel.canDeleteOption()) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        }
+                    )
+                }
+            }
+        }
+
+        Button(
+            onClick = { viewModel.addOption() },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(vertical = 8.dp)
         ) {
-            Text(
-                text = "Archived: ",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-            )
-            Checkbox(
-                checked = editCardViewModel.isArchived,
-                onCheckedChange = {editCardViewModel.updateIsArchived(it)}
-            )
+            Text("Add Another Option")
         }
+
         Button(
             onClick = {
-                cardViewModel.editCardById(CardId.toIntOrNull(), card = Card(CardId.toInt(), editCardViewModel.title, editCardViewModel.content, editCardViewModel.timestamp, editCardViewModel.isArchived))
-                val builder = AlertDialog.Builder(context)
-                builder.setMessage("Edited Card!")
-                    .setCancelable(false)
-                    .setPositiveButton("Ok") { dialog, id ->
-                        navController.navigate("CardList")
-                    }
-                val alert = builder.create()
-                alert.show()
-
+                viewModel.updateCard(card.id)
+                onCardEdited()
             },
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = "Save")
+            Text("Save Changes")
         }
     }
 }

@@ -10,12 +10,12 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.FlowPreview
 import nz.ac.canterbury.seng303.assg1.models.Card
 import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
+import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
-
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "nz.ac.canterbury.seng303.lab1.shared.preferences")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "nz.ac.canterbury.seng303.assg1.shared.preferences")
 
 @FlowPreview
 val dataAccessModule = module {
@@ -30,9 +30,8 @@ val dataAccessModule = module {
 
     single { Gson() }
 
-    viewModel {
-        CardViewModel(
-            cardStorage = get()
-        )
-    }
+    viewModel { CardViewModel(cardStorage = get()) }
+    viewModel { CreateCardViewModel(cardStorage = get()) }
+
+    factory { CreateCardViewModel.provideFactory(cardStorage = get()) }
 }

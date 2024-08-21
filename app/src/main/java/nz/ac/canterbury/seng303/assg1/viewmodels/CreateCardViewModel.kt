@@ -1,22 +1,111 @@
 package nz.ac.canterbury.seng303.assg1.viewmodels
 
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import nz.ac.canterbury.seng303.assg1.datastore.Storage
+import nz.ac.canterbury.seng303.assg1.models.Card
 
-class CreateCardViewModel: ViewModel() {
-    var title by mutableStateOf("")
-        private set
+class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() {
+    private val _title = mutableStateOf("")
+    val title: String get() = _title.value
+
+    private val _options = mutableStateListOf("", "")
+    val options: List<String> get() = _options
+
+    private val _correctOptionIndices = mutableStateOf(setOf<Int>())
+    val correctOptionIndices: Set<Int> get() = _correctOptionIndices.value
 
     fun updateTitle(newTitle: String) {
-        title = newTitle
+        _title.value = newTitle
     }
 
-    var content by mutableStateOf("")
-        private set
-
-    fun updateContent(newContent: String) {
-        content = newContent
+    fun updateOption(index: Int, text: String) {
+        if (index in _options.indices) {
+            _options[index] = text
+        }
     }
+
+    fun addOption() {
+        _options.add("")
+    }
+
+    fun deleteOption(index: Int) {
+        if (_options.size > 2 && index in _options.indices) {
+            _options.removeAt(index)
+            _correctOptionIndices.value = _correctOptionIndices.value.map {
+                if (it > index) it - 1 else it
+            }.filter { it < _options.size }.toSet()
+        }
+    }
+
+    fun toggleCorrectOption(index: Int) {
+        _correctOptionIndices.value = _correctOptionIndices.value.toMutableSet().apply {
+            if (index in this) remove(index) else add(index)
+        }
+    }
+
+    fun canDeleteOption(): Boolean = _options.size > 2
+
+    fun createCard(): Card? {
+        val nonEmptyOptions = _options.filter { it.isNotBlank() }
+        return if (_title.value.isNotBlank() && nonEmptyOptions.size >= 2 && _correctOptionIndices.value.isNotEmpty()) {
+            Card.create(
+                id = System.currentTimeMillis().toInt(), // Simple ID generation
+                title = _title.value,
+                initialOptions = nonEmptyOptions,
+                correctOptionIndices = _correctOptionIndices.value
+            )
+        } else null
+    }
+
+    fun saveCard() {
+        createCard()?.let { card ->
+            viewModelScope.launch {
+                cardStorage.insert(card).collect { result ->
+                    if (result == 1) {
+                        // Card saved successfully
+                        // You might want to clear the form or navigate away
+                    }
+                }
+            }
+        }
+    }
+
+    fun initializeWithCard(card: Card) {
+        _title.value = card.title
+        _options.clear()
+        _options.addAll(card.options.map { it.text })
+        _correctOptionIndices.value = card.correctOptionId
+    }
+
+    fun updateCard(id: Int) {
+        val updatedCard = createCard()?.copy(id = id)
+        updatedCard?.let { card ->
+            viewModelScope.launch {
+                cardStorage.edit(id, card).collect { result ->
+                    if (result == 1) {
+                        // Card updated successfully
+                        // You might want to clear the form or navigate away
+                    }
+                }
+            }
+        }
+    }
+
+    companion object {
+        fun provideFactory(
+            cardStorage: Storage<Card>
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return CreateCardViewModel(cardStorage) as T
+            }
+        }
+    }
+
+
 }
