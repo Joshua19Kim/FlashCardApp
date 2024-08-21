@@ -61,6 +61,40 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
             )
         } else null
     }
+    private val _errorMessage = mutableStateOf<String?>(null)
+    val errorMessage: String? get() = _errorMessage.value
+    private val _showErrorDialog = mutableStateOf(false)
+    val showErrorDialog: Boolean get() = _showErrorDialog.value
+
+    fun validateAndSaveCard(): Boolean {
+        when {
+            _title.value.isBlank() -> {
+                _errorMessage.value = "A flash card must have a question."
+                _showErrorDialog.value = true
+                return false
+            }
+            _options.filter { it.isNotBlank() }.size < 2 -> {
+                _errorMessage.value = "A flash card must have at least 2 answers."
+                _showErrorDialog.value = true
+                return false
+            }
+            _correctOptionIndices.value.isEmpty() -> {
+                _errorMessage.value = "A flash card must have 1 correct answer."
+                _showErrorDialog.value = true
+                return false
+            }
+            else -> {
+                _errorMessage.value = null
+                _showErrorDialog.value = false
+                saveCard()
+                return true
+            }
+        }
+    }
+    fun dismissErrorDialog() {
+        _showErrorDialog.value = false
+    }
+
 
     fun saveCard() {
         createCard()?.let { card ->

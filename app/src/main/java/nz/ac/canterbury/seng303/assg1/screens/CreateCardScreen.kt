@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -89,12 +88,25 @@ fun CreateCardScreen(
 
         Button(
             onClick = {
-                viewModel.saveCard()
-                onCreateCardClick()
+                if (viewModel.validateAndSaveCard()) {
+                    onCreateCardClick()
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Save Card and Return")
+        }
+        if (viewModel.showErrorDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissErrorDialog() },
+                title = { Text("Error") },
+                text = { Text(viewModel.errorMessage ?: "") },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissErrorDialog() }) {
+                        Text("OK")
+                    }
+                }
+            )
         }
     }
 }
