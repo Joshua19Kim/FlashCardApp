@@ -26,7 +26,7 @@ import org.koin.androidx.compose.koinViewModel
 fun CardListScreen(
     viewModel: CardViewModel = koinViewModel(),
     onCreateCardClick: () -> Unit,
-    onEditCardClick: (Card) -> Unit
+    onEditCardClick: (Int) -> Unit
 ) {
     val cards by viewModel.cards.collectAsState()
 
@@ -45,7 +45,7 @@ fun CardListScreen(
                     CardItem(
                         card = card,
                         onDelete = { viewModel.deleteCard(card.id) },
-                        onEdit = { onEditCardClick(card) }
+                        onEdit = { onEditCardClick(card.id) }
                     )
                 }
             }

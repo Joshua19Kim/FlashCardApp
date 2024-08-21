@@ -16,7 +16,7 @@ data class Card(
     companion object {
         fun create(id: Int, title: String, initialOptions: List<String>, correctOptionIndices: Set<Int>): Card {
             require(initialOptions.size >= 2) { "A flash card must have at least two options" }
-            require(correctOptionIndices.all { it in initialOptions.indices}) { "Correct option index out of bounds" }
+            require(correctOptionIndices.all { it in initialOptions.indices }) { "Correct option index out of bounds" }
 
             val options = initialOptions.mapIndexed { index, text -> Option(index, text) }
             return Card(id, title, options, correctOptionIndices)

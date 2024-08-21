@@ -51,13 +51,20 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
     fun canDeleteOption(): Boolean = _options.size > 2
 
     fun createCard(): Card? {
-        val nonEmptyOptions = _options.filter { it.isNotBlank() }
-        return if (_title.value.isNotBlank() && nonEmptyOptions.size >= 2 && _correctOptionIndices.value.isNotEmpty()) {
+        val nonEmptyOptions = _options.mapIndexedNotNull { index, option ->
+            if (option.isNotBlank()) Card.Option(index, option) else null
+        }
+        val adjustedCorrectIndices = _correctOptionIndices.value
+            .filter { it < nonEmptyOptions.size }
+            .map { nonEmptyOptions[it].id }
+            .toSet()
+
+        return if (_title.value.isNotBlank() && nonEmptyOptions.size >= 2 && adjustedCorrectIndices.isNotEmpty()) {
             Card.create(
-                id = System.currentTimeMillis().toInt(), // Simple ID generation
+                id = System.currentTimeMillis().toInt(),
                 title = _title.value,
-                initialOptions = nonEmptyOptions,
-                correctOptionIndices = _correctOptionIndices.value
+                initialOptions = nonEmptyOptions.map { it.text },
+                correctOptionIndices = adjustedCorrectIndices
             )
         } else null
     }
@@ -67,19 +74,24 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
     val showErrorDialog: Boolean get() = _showErrorDialog.value
 
     fun validateAndSaveCard(): Boolean {
+        val nonEmptyOptionsCount = _options.count { it.isNotBlank() }
+        val validCorrectOptions = _correctOptionIndices.value.count { index ->
+            index < _options.size && _options[index].isNotBlank()
+        }
+
         when {
             _title.value.isBlank() -> {
                 _errorMessage.value = "A flash card must have a question."
                 _showErrorDialog.value = true
                 return false
             }
-            _options.filter { it.isNotBlank() }.size < 2 -> {
-                _errorMessage.value = "A flash card must have at least 2 answers."
+            nonEmptyOptionsCount < 2 -> {
+                _errorMessage.value = "A flash card must have at least 2 non-empty answers."
                 _showErrorDialog.value = true
                 return false
             }
-            _correctOptionIndices.value.isEmpty() -> {
-                _errorMessage.value = "A flash card must have 1 correct answer."
+            validCorrectOptions == 0 -> {
+                _errorMessage.value = "A flash card must have at least 1 correct non-empty answer."
                 _showErrorDialog.value = true
                 return false
             }
@@ -105,6 +117,17 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
                         // You might want to clear the form or navigate away
                     }
                 }
+            }
+        }
+    }
+    fun isOptionEmpty(index: Int): Boolean {
+        return options.getOrNull(index)?.isBlank() ?: true
+    }
+
+    fun loadCard(cardId: Int) {
+        viewModelScope.launch {
+            cardStorage.get { it.id == cardId }.collect { card ->
+                initializeWithCard(card)
             }
         }
     }

@@ -24,9 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import nz.ac.canterbury.seng303.assg1.models.Card
 import nz.ac.canterbury.seng303.assg1.screens.CardListScreen
 import nz.ac.canterbury.seng303.assg1.screens.CreateCardScreen
@@ -69,9 +71,8 @@ class MainActivity : ComponentActivity() {
                             composable("cardList") {
                                 CardListScreen(
                                     onCreateCardClick = { navController.navigate("CreateCard") },
-                                    onEditCardClick = { card ->
-                                        navController.currentBackStackEntry?.savedStateHandle?.set("card", card)
-                                        navController.navigate("EditCard")
+                                    onEditCardClick = { cardId ->
+                                        navController.navigate("EditCard/$cardId")
                                     }
                                 )
                             }
@@ -86,13 +87,18 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            composable("EditCard") {
-                                val card = navController.previousBackStackEntry?.savedStateHandle?.get<Card>("card")
-                                card?.let {
+                            composable(
+                                route = "EditCard/{cardId}",
+                                arguments = listOf(navArgument("cardId") { type = NavType.IntType })
+                            ) { backStackEntry ->
+                                val cardId = backStackEntry.arguments?.getInt("cardId")
+                                if (cardId != null) {
                                     EditCardScreen(
-                                        card = it,
+                                        cardId = cardId,
                                         onCardEdited = { navController.popBackStack() }
                                     )
+                                } else {
+                                    Text("Error: Card not found")
                                 }
                             }
                         }

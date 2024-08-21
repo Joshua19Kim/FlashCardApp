@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -30,12 +32,12 @@ import org.koin.androidx.compose.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditCardScreen(
-    card: Card,
+    cardId: Int,
     onCardEdited: () -> Unit,
     viewModel: CreateCardViewModel = koinViewModel(),
 ) {
-    LaunchedEffect(card) {
-        viewModel.initializeWithCard(card)
+    LaunchedEffect(cardId) {
+        viewModel.loadCard(cardId)
     }
 
     Column(
@@ -68,11 +70,21 @@ fun EditCardScreen(
             ) {
                 Checkbox(
                     checked = index in viewModel.correctOptionIndices,
-                    onCheckedChange = { viewModel.toggleCorrectOption(index) }
+                    onCheckedChange = {
+                        if (!viewModel.isOptionEmpty(index)) {
+                            viewModel.toggleCorrectOption(index)
+                        }
+                    },
+                    enabled = !viewModel.isOptionEmpty(index)
                 )
                 OutlinedTextField(
                     value = option,
-                    onValueChange = { viewModel.updateOption(index, it) },
+                    onValueChange = {
+                        viewModel.updateOption(index, it)
+                        if (it.isBlank() && index in viewModel.correctOptionIndices) {
+                            viewModel.toggleCorrectOption(index)
+                        }
+                    },
                     label = { Text("Option ${index + 1}") },
                     modifier = Modifier
                         .weight(1f)
@@ -94,7 +106,6 @@ fun EditCardScreen(
                 }
             }
         }
-
         Button(
             onClick = { viewModel.addOption() },
             modifier = Modifier
@@ -106,12 +117,27 @@ fun EditCardScreen(
 
         Button(
             onClick = {
-                viewModel.updateCard(card.id)
-                onCardEdited()
+                if (viewModel.validateAndSaveCard()) {
+                    viewModel.updateCard(cardId)
+                    onCardEdited()
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Save Changes")
+        }
+
+        if (viewModel.showErrorDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissErrorDialog() },
+                title = { Text("Error") },
+                text = { Text(viewModel.errorMessage ?: "") },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissErrorDialog() }) {
+                        Text("OK")
+                    }
+                }
+            )
         }
     }
 }

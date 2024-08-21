@@ -50,11 +50,21 @@ fun CreateCardScreen(
             ) {
                 Checkbox(
                     checked = index in viewModel.correctOptionIndices,
-                    onCheckedChange = { viewModel.toggleCorrectOption(index) }
+                    onCheckedChange = {
+                        if (!viewModel.isOptionEmpty(index)) {
+                            viewModel.toggleCorrectOption(index)
+                        }
+                    },
+                    enabled = !viewModel.isOptionEmpty(index)
                 )
                 OutlinedTextField(
                     value = option,
-                    onValueChange = { viewModel.updateOption(index, it) },
+                    onValueChange = {
+                        viewModel.updateOption(index, it)
+                        if (it.isBlank() && index in viewModel.correctOptionIndices) {
+                            viewModel.toggleCorrectOption(index)
+                        }
+                    },
                     label = { Text("Option ${index + 1}") },
                     modifier = Modifier
                         .weight(1f)
