@@ -3,15 +3,17 @@ package nz.ac.canterbury.seng303.assg1
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -24,7 +26,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -37,8 +38,16 @@ import nz.ac.canterbury.seng303.assg1.screens.CreateCardScreen
 import nz.ac.canterbury.seng303.assg1.screens.EditCardScreen
 import nz.ac.canterbury.seng303.assg1.ui.theme.Assg1Theme
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
-import nz.ac.canterbury.seng303.lab2.R
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import nz.ac.canterbury.seng303.assg1.screens.PlayCardScreen
+import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
 
 
 class MainActivity : ComponentActivity() {
@@ -104,6 +113,25 @@ class MainActivity : ComponentActivity() {
                                     Text("Error: Card not found")
                                 }
                             }
+
+                            composable(
+                                route = "PlayCard/{playerName}",
+                                arguments = listOf(navArgument("playerName") { type = NavType.StringType })
+                            ) { backStackEntry ->
+                                val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
+                                val playCardViewModel: PlayCardViewModel by viewModel()
+                                playCardViewModel.setPlayerName(playerName)
+                                PlayCardScreen(
+                                    viewModel = playCardViewModel,
+                                    onGameFinished = {
+                                        navController.navigate("Home") {
+                                            popUpTo("Home") { inclusive = true }
+                                        }
+                                    }
+                                )
+                            }
+
+
                         }
                     }
                 }
@@ -114,28 +142,105 @@ class MainActivity : ComponentActivity() {
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Home(navController: NavController) {
+    var showNameDialog by remember { mutableStateOf(false) }
+    var playerName by remember { mutableStateOf("") }
+
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-//        Image(
-//            painter = painterResource(id = R.drawable.note_bw),
-//            contentDescription = "App Icon",
-//            modifier = Modifier.size(100.dp)
-//        )
+
+        StyledButton(
+            text = "Create Flash Card",
+            onClick = { navController.navigate("CreateCard") }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        StyledButton(
+            text = "View Flash Cards",
+            onClick = { navController.navigate("cardList") }
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = { showNameDialog = true },
+            modifier = Modifier.size(200.dp),
+            shape = CircleShape,
+            contentPadding = PaddingValues(16.dp)
+        ) {
+            Column (
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ){
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    modifier = Modifier.size(130.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "PLAY",
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-
-        Button(onClick = { navController.navigate("CreateCard") }) {
-            Text("Create Flash Card")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { navController.navigate("cardList") }) {
-            Text("View Flash Cards")
         }
     }
+
+    if (showNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showNameDialog = false },
+            title = { Text("Enter Your Name") },
+            text = {
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = { playerName = it },
+                    label = { Text("Name") }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showNameDialog = false
+                        navController.navigate("PlayCard/$playerName")
+                    },
+                    enabled = playerName.isNotBlank()
+                ) {
+                    Text("Start Game")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNameDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun StyledButton(text: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .padding(horizontal = 16.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+
 }
