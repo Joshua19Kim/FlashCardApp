@@ -3,6 +3,14 @@ package nz.ac.canterbury.seng303.assg1
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -44,8 +53,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.currentBackStackEntryAsState
+import kotlinx.coroutines.delay
 import nz.ac.canterbury.seng303.assg1.screens.PlayCardScreen
 import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
@@ -60,16 +73,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             Assg1Theme {
                 val navController = rememberNavController()
+                val currentBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = currentBackStackEntry?.destination?.route ?: "Home"
                 Scaffold(
                     topBar = {
                         TopAppBar(
                             title = { Text("Flash Card 303") },
                             navigationIcon = {
-                                IconButton(onClick = { navController.popBackStack() }) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowBack,
-                                        contentDescription = "Back"
-                                    )
+                                if (currentRoute != "Home") {
+                                    IconButton(onClick = { navController.popBackStack() }) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowBack,
+                                            contentDescription = "Back"
+                                        )
+                                    }
                                 }
                             }
                         )
@@ -155,68 +172,128 @@ fun Home(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            StyledButton(
-                text = "Create Flash Card",
-                onClick = { navController.navigate("CreateCard") }
-            )
+    var isShuffling by remember { mutableStateOf(false) }
+    var showShuffleMessage by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (isShuffling) 360f else 0f,
+        animationSpec = tween(durationMillis = 500)
+    )
 
-            Spacer(modifier = Modifier.height(16.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) }
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                StyledButton(
+                    text = "Create Flash Card",
+                    onClick = { navController.navigate("CreateCard") }
+                )
 
-            StyledButton(
-                text = "View Flash Cards (${cards.size})",
-                onClick = { navController.navigate("cardList") }
-            )
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
+                StyledButton(
+                    text = "View Flash Cards (${cards.size})",
+                    onClick = { navController.navigate("cardList") }
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = {
+                        if (cards.isEmpty()) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = "There is no card. Please make a card",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        } else {
+                            showNameDialog = true
+                        }
+                    },
+                    modifier = Modifier.size(200.dp),
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play",
+                            modifier = Modifier.size(130.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "PLAY",
+                            fontSize = 25.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
 
             Button(
                 onClick = {
-                    if (cards.isEmpty()) {
+                    if (cards.isNotEmpty()) {
+                        isShuffling = true
+                        scope.launch {
+                            cardViewModel.shuffleCards()
+                            showShuffleMessage = true
+                            delay(1000) // Show message for 2 seconds
+                            showShuffleMessage = false
+                            isShuffling = false
+                        }
+                    } else {
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                message = "There is no card. Please make a card",
+                                message = "No cards to shuffle",
                                 duration = SnackbarDuration.Short
                             )
                         }
-                    } else {
-                        showNameDialog = true
                     }
                 },
-                modifier = Modifier.size(200.dp),
-                shape = CircleShape,
-                contentPadding = PaddingValues(16.dp)
+                modifier = Modifier
+                    .padding(top = 16.dp)
             ) {
-                Column (
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ){
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Play",
-                        modifier = Modifier.size(130.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "PLAY",
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "🔀",
+                    modifier = Modifier
+                        .rotate(rotation)
+                        .padding(end = 8.dp)
+                )
+                Text("Shuffle")
             }
         }
     }
+    AnimatedVisibility(
+        visible = showShuffleMessage,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "Cards shuffled!",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+
 
     if (showNameDialog) {
         AlertDialog(

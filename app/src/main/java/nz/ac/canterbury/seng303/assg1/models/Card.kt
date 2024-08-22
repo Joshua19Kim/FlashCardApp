@@ -7,11 +7,12 @@ data class Card(
     val options: List<Option>,
     val correctOptionId: Set<Int>
 ) : Identifiable {
+    override fun getIdentifier(): Int = id
     data class Option(
         val id: Int,
         val text: String
     )
-    override fun getIdentifier(): Int = id
+
 
     companion object {
         fun create(id: Int, title: String, initialOptions: List<String>, correctOptionIndices: Set<Int>): Card {

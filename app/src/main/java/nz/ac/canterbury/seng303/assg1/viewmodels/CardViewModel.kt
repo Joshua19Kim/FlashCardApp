@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import nz.ac.canterbury.seng303.assg1.datastore.Storage
 import nz.ac.canterbury.seng303.assg1.models.Card
@@ -25,12 +26,43 @@ class CardViewModel(private val cardStorage: Storage<Card>) : ViewModel() {
         }
     }
 
+    private suspend fun getNextId(): Int {
+        val currentCards = cardStorage.getAll().first()
+        return if (currentCards.isEmpty()) 1 else currentCards.maxOf { it.id } + 1
+    }
+
     fun addCard(card: Card) {
         viewModelScope.launch {
-            cardStorage.insert(card).collect { result ->
+            val newId = getNextId()
+            val newCard = card.copy(id = newId)
+            cardStorage.insert(newCard).collect { result ->
                 if (result == 1) {
                     loadCards()
                 }
+            }
+        }
+    }
+
+    fun shuffleCards() {
+        viewModelScope.launch {
+            val currentCards = _cards.value
+            println("Current cards: ${currentCards.map { it.id to it.title }}")
+            if (currentCards.isNotEmpty()) {
+                val shuffledCards = currentCards.shuffled().mapIndexed { index, card ->
+                    card.copy(id = index + 1)
+                }
+                println("Shuffled cards: ${shuffledCards.map { it.id to it.title }}")
+
+                // Clear all existing cards
+                cardStorage.getAll().first().forEach { card ->
+                    cardStorage.delete(card.id).first()
+                }
+
+                // Insert shuffled cards
+                cardStorage.insertAll(shuffledCards).first()
+
+                // Update the local state
+                _cards.value = shuffledCards
             }
         }
     }
