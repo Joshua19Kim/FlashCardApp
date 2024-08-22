@@ -31,8 +31,8 @@ val dataAccessModule = module {
 
     single { Gson() }
 
-    viewModel { CardViewModel(cardStorage = get()) }
-    viewModel { CreateCardViewModel(cardStorage = get()) }
-    viewModel { PlayCardViewModel(cardStorage = get()) }
-    factory { CreateCardViewModel.provideFactory(cardStorage = get()) }
+    viewModel { CardViewModel(get()) }
+    viewModel { CreateCardViewModel(get()) }
+    viewModel { PlayCardViewModel(get()) }
+//    factory { CreateCardViewModel.provideFactory(cardStorage = get()) }
 }

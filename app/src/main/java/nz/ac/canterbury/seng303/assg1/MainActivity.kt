@@ -47,11 +47,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import nz.ac.canterbury.seng303.assg1.screens.PlayCardScreen
+import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
-
+import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
-    private val createCardViewModel: CreateCardViewModel by viewModel()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -144,55 +145,76 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Home(navController: NavController) {
+fun Home(
+    navController: NavController,
+    cardViewModel: CardViewModel = koinViewModel()
+) {
     var showNameDialog by remember { mutableStateOf(false) }
     var playerName by remember { mutableStateOf("") }
+    val cards by cardViewModel.cards.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-
-        StyledButton(
-            text = "Create Flash Card",
-            onClick = { navController.navigate("CreateCard") }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        StyledButton(
-            text = "View Flash Cards",
-            onClick = { navController.navigate("cardList") }
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = { showNameDialog = true },
-            modifier = Modifier.size(200.dp),
-            shape = CircleShape,
-            contentPadding = PaddingValues(16.dp)
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column (
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ){
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play",
-                    modifier = Modifier.size(130.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "PLAY",
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            StyledButton(
+                text = "Create Flash Card",
+                onClick = { navController.navigate("CreateCard") }
+            )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            StyledButton(
+                text = "View Flash Cards (${cards.size})",
+                onClick = { navController.navigate("cardList") }
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = {
+                    if (cards.isEmpty()) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "There is no card. Please make a card",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    } else {
+                        showNameDialog = true
+                    }
+                },
+                modifier = Modifier.size(200.dp),
+                shape = CircleShape,
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                Column (
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ){
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Play",
+                        modifier = Modifier.size(130.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "PLAY",
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 
@@ -226,6 +248,7 @@ fun Home(navController: NavController) {
         )
     }
 }
+
 
 @Composable
 fun StyledButton(text: String, onClick: () -> Unit) {
