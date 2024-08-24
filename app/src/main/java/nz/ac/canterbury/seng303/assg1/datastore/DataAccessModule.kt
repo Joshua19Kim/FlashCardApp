@@ -36,5 +36,4 @@ val dataAccessModule = module {
     viewModel { CreateCardViewModel(get()) }
     viewModel { PlayCardViewModel(get(), get()) }
     viewModel { PlayerNameViewModel() }
-//    factory { CreateCardViewModel.provideFactory(cardStorage = get()) }
 }

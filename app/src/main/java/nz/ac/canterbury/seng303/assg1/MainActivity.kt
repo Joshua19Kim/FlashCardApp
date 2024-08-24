@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -134,13 +135,17 @@ class MainActivity : ComponentActivity() {
                             }
 
                             composable(
-                                route = "PlayCard/{playerName}",
-                                arguments = listOf(navArgument("playerName") { type = NavType.StringType })
+                                route = "PlayCard/{playerName}/{shuffleEnabled}",
+                                arguments = listOf(
+                                    navArgument("playerName") { type = NavType.StringType },
+                                    navArgument("shuffleEnabled") { type = NavType.BoolType }
+                                )
                             ) { backStackEntry ->
                                 val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
+                                val shuffleEnabled = backStackEntry.arguments?.getBoolean("shuffleEnabled") ?: false
                                 val playCardViewModel: PlayCardViewModel by viewModel()
                                 LaunchedEffect(Unit) {
-                                    playCardViewModel.resetGameState()
+                                    playCardViewModel.resetGameState(shuffleEnabled)
                                 }
                                 PlayCardScreen(
                                     viewModel = playCardViewModel,
@@ -174,17 +179,12 @@ fun Home(
 ) {
     val playerName by playerNameViewModel.playerName.collectAsState()
     var showNameDialog by remember { mutableStateOf(false) }
-    var newPlayerName by remember { mutableStateOf("") }
+    var dialogPlayerName by remember { mutableStateOf("") }
     val cards by cardViewModel.cards.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    var isShuffling by remember { mutableStateOf(false) }
     var showShuffleMessage by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(
-        targetValue = if (isShuffling) 360f else 0f,
-        animationSpec = tween(durationMillis = 500)
-    )
+    val shuffleEnabled by playCardViewModel.shuffleEnabled.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -201,16 +201,16 @@ fun Home(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Player: $playerName", style = MaterialTheme.typography.titleMedium)
+                Text("Player: $playerName", style = MaterialTheme.typography.titleLarge)
 
                 Button(
                     onClick = {
-                        newPlayerName = playerName
+                        dialogPlayerName = ""
                         showNameDialog = true
                     },
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    Text("Change Player Name")
+                    Text("Change Name")
                 }
 
                 Spacer(modifier = Modifier.height(50.dp))
@@ -239,8 +239,7 @@ fun Home(
                                 )
                             }
                         } else {
-                            playCardViewModel.resetGameState()
-                            navController.navigate("PlayCard/${playerName}")
+                            navController.navigate("PlayCard/${playerName}/${shuffleEnabled}")
                         }
                     },
                     modifier = Modifier.size(200.dp),
@@ -263,40 +262,34 @@ fun Home(
                             fontWeight = FontWeight.Bold
                         )
                     }
+
                 }
+
+                Spacer(modifier = Modifier.height(80.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        "Shuffle Cards",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Switch(
+                        checked = shuffleEnabled,
+                        onCheckedChange = {
+                            playCardViewModel.toggleShuffle()
+                            if (it) {
+                                showShuffleMessage = true
+                            }
+                        }
+                    )
+                }
+
             }
 
-            Button(
-                onClick = {
-                    if (cards.isNotEmpty()) {
-                        isShuffling = true
-                        scope.launch {
-                            cardViewModel.shuffleCards()
-                            showShuffleMessage = true
-                            delay(1000)
-                            showShuffleMessage = false
-                            isShuffling = false
-                        }
-                    } else {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = "No cards to shuffle",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .padding(top = 16.dp)
-            ) {
-                Text(
-                    text = "🔀",
-                    modifier = Modifier
-                        .rotate(rotation)
-                        .padding(end = 8.dp)
-                )
-                Text("Shuffle")
-            }
+
         }
     }
     AnimatedVisibility(
@@ -311,11 +304,16 @@ fun Home(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                "Cards shuffled!",
+                "Cards shuffled!  \n\n\n" +
+                        " Let's Play Flash Card!",
                 color = Color.White,
-                fontSize = 24.sp,
+                fontSize = 30.sp,
                 fontWeight = FontWeight.Bold
             )
+        }
+        LaunchedEffect(showShuffleMessage) {
+            delay(1500)
+            showShuffleMessage = false
         }
     }
 
@@ -326,23 +324,31 @@ fun Home(
             title = { Text("Change Player Name") },
             text = {
                 OutlinedTextField(
-                    value = newPlayerName,
-                    onValueChange = { newPlayerName = it },
-                    label = { Text("Name") }
+                    value = dialogPlayerName,
+                    onValueChange = { dialogPlayerName = it },
+                    label = { Text("Enter New Name") },
+                    singleLine = true
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        playerNameViewModel.setPlayerName(newPlayerName)
-                        showNameDialog = false
-                    }
+                        if (dialogPlayerName.isNotBlank()) {
+                            playerNameViewModel.setPlayerName(dialogPlayerName)
+                            showNameDialog = false
+                        }
+                    },
+                    enabled = dialogPlayerName.isNotBlank()
                 ) {
                     Text("Save")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showNameDialog = false }) {
+                TextButton(
+                    onClick = {
+                        showNameDialog = false
+                    }
+                ) {
                     Text("Cancel")
                 }
             }

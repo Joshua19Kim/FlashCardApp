@@ -1,10 +1,12 @@
 package nz.ac.canterbury.seng303.assg1.viewmodels
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import nz.ac.canterbury.seng303.assg1.datastore.Storage
 import nz.ac.canterbury.seng303.assg1.models.Card
@@ -14,6 +16,9 @@ class PlayCardViewModel(
     private val playerNameViewModel: PlayerNameViewModel
 ) : ViewModel() {
     val playerName = playerNameViewModel.playerName
+
+    private val _shuffleEnabled = MutableStateFlow(false)
+    val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled
 
     private val _cards = MutableStateFlow<List<Card>>(emptyList())
     val cards: StateFlow<List<Card>> = _cards
@@ -43,13 +48,26 @@ class PlayCardViewModel(
         loadCards()
     }
 
+    fun toggleShuffle() {
+        _shuffleEnabled.value = !_shuffleEnabled.value
+        Log.d("PlayCardViewModel", "Shuffle toggled: ${if (_shuffleEnabled.value) "ON" else "OFF"}")
+        loadCards()
+    }
+
     private fun loadCards() {
         viewModelScope.launch {
-            cardStorage.getAll().collect { cardList ->
-                _cards.value = cardList.shuffled()
-                updateProgress()
-            }
+            val cardList = cardStorage.getAll().first()
+            _cards.value = if (_shuffleEnabled.value) cardList.shuffled() else cardList
+            _currentCardIndex.value = 0
+            updateProgress()
+            Log.d("PlayCardViewModel", "Cards loaded. Shuffle is ${if (_shuffleEnabled.value) "ON" else "OFF"}")
         }
+    }
+
+    private fun shuffleCards() {
+        _cards.value = _cards.value.shuffled()
+        _currentCardIndex.value = 0
+        updateProgress()
     }
 
     fun toggleOption(optionId: Int) {
@@ -78,17 +96,30 @@ class PlayCardViewModel(
         _progress.value = "${_currentCardIndex.value + 1}/${_cards.value.size}"
     }
 
-    fun restartGame() {
+    private fun resetState() {
         _currentCardIndex.value = 0
         _selectedOptions.value = emptySet()
         _gameResults.value = emptyList()
         _gameFinished.value = false
         _isOptionSelected.value = false
         _showExitConfirmation.value = false
-        loadCards()
     }
-    fun resetGameState() {
-        restartGame()
+
+    fun restartGame() {
+        resetState()
+        loadCards()
+        Log.d("PlayCardViewModel", "Game restarted. Shuffle is ${if (_shuffleEnabled.value) "ON" else "OFF"}")
+    }
+
+    fun resetGameState(shuffleEnabled: Boolean) {
+        _shuffleEnabled.value = shuffleEnabled
+        resetState()
+        loadCards()
+        Log.d(
+            "PlayCardViewModel",
+            "Game state reset. Shuffle is ${if (_shuffleEnabled.value) "ON" else "OFF"}"
+        )
+
     }
     fun onTryExit() {
         _showExitConfirmation.value = true
@@ -101,5 +132,4 @@ class PlayCardViewModel(
     fun onExitCancelled() {
         _showExitConfirmation.value = false
     }
-
 }
