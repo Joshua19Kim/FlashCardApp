@@ -12,6 +12,7 @@ import nz.ac.canterbury.seng303.assg1.models.Card
 import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
+import nz.ac.canterbury.seng303.assg1.viewmodels.PlayerNameViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -33,6 +34,7 @@ val dataAccessModule = module {
 
     viewModel { CardViewModel(get()) }
     viewModel { CreateCardViewModel(get()) }
-    viewModel { PlayCardViewModel(get()) }
+    viewModel { PlayCardViewModel(get(), get()) }
+    viewModel { PlayerNameViewModel() }
 //    factory { CreateCardViewModel.provideFactory(cardStorage = get()) }
 }

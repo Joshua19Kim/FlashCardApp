@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -64,6 +63,8 @@ import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import nz.ac.canterbury.seng303.assg1.viewmodels.PlayerNameViewModel
+
 
 class MainActivity : ComponentActivity() {
 
@@ -91,8 +92,8 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-                ) {
-                    Box(modifier = Modifier.padding(it)) {
+                ) { paddingValues ->
+                    Box(modifier = Modifier.padding(paddingValues)) {
                         NavHost(navController = navController, startDestination = "Home") {
                             composable("Home") {
                                 Home(navController = navController)
@@ -138,7 +139,9 @@ class MainActivity : ComponentActivity() {
                             ) { backStackEntry ->
                                 val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
                                 val playCardViewModel: PlayCardViewModel by viewModel()
-                                playCardViewModel.setPlayerName(playerName)
+                                LaunchedEffect(Unit) {
+                                    playCardViewModel.resetGameState()
+                                }
                                 PlayCardScreen(
                                     viewModel = playCardViewModel,
                                     onGameFinished = {
@@ -164,10 +167,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Home(
     navController: NavController,
-    cardViewModel: CardViewModel = koinViewModel()
+    cardViewModel: CardViewModel = koinViewModel(),
+    playCardViewModel: PlayCardViewModel = koinViewModel(),
+    playerNameViewModel: PlayerNameViewModel = koinViewModel()
+
 ) {
+    val playerName by playerNameViewModel.playerName.collectAsState()
     var showNameDialog by remember { mutableStateOf(false) }
-    var playerName by remember { mutableStateOf("") }
+    var newPlayerName by remember { mutableStateOf("") }
     val cards by cardViewModel.cards.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -187,10 +194,27 @@ fun Home(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Player: $playerName", style = MaterialTheme.typography.titleMedium)
+
+                Button(
+                    onClick = {
+                        newPlayerName = playerName
+                        showNameDialog = true
+                    },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Change Player Name")
+                }
+
+                Spacer(modifier = Modifier.height(50.dp))
+
                 StyledButton(
                     text = "Create Flash Card",
                     onClick = { navController.navigate("CreateCard") }
@@ -215,7 +239,8 @@ fun Home(
                                 )
                             }
                         } else {
-                            showNameDialog = true
+                            playCardViewModel.resetGameState()
+                            navController.navigate("PlayCard/${playerName}")
                         }
                     },
                     modifier = Modifier.size(200.dp),
@@ -248,7 +273,7 @@ fun Home(
                         scope.launch {
                             cardViewModel.shuffleCards()
                             showShuffleMessage = true
-                            delay(1000) // Show message for 2 seconds
+                            delay(1000)
                             showShuffleMessage = false
                             isShuffling = false
                         }
@@ -298,23 +323,22 @@ fun Home(
     if (showNameDialog) {
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
-            title = { Text("Enter Your Name") },
+            title = { Text("Change Player Name") },
             text = {
                 OutlinedTextField(
-                    value = playerName,
-                    onValueChange = { playerName = it },
+                    value = newPlayerName,
+                    onValueChange = { newPlayerName = it },
                     label = { Text("Name") }
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
+                        playerNameViewModel.setPlayerName(newPlayerName)
                         showNameDialog = false
-                        navController.navigate("PlayCard/$playerName")
-                    },
-                    enabled = playerName.isNotBlank()
+                    }
                 ) {
-                    Text("Start Game")
+                    Text("Save")
                 }
             },
             dismissButton = {
