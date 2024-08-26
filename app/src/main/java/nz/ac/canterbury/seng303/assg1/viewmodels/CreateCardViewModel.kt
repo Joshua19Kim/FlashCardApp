@@ -17,6 +17,12 @@ class CreateCardViewModel(
     private val _title = mutableStateOf("")
     val title: String get() = _title.value
 
+    private val _isTitleUnique = MutableStateFlow(true)
+    val isTitleUnique: StateFlow<Boolean> = _isTitleUnique
+
+    private val _duplicateOptionIndices = mutableStateOf(setOf<Int>())
+    val duplicateOptionIndices: Set<Int> get() = _duplicateOptionIndices.value
+
     private val _options = mutableStateListOf("", "")
     val options: List<String> get() = _options
 
@@ -31,6 +37,14 @@ class CreateCardViewModel(
 
     private val _deleteSuccess = MutableStateFlow(false)
     val deleteSuccess: StateFlow<Boolean> = _deleteSuccess
+
+    fun checkTitleUniqueness(title: String) {
+        viewModelScope.launch {
+            cardStorage.getAll().collect { cards ->
+                _isTitleUnique.value = !cards.any { it.title.equals(title, ignoreCase = true) }
+            }
+        }
+    }
 
     fun showDeleteDialog() {
         _showDeleteDialog.value = true
@@ -60,12 +74,23 @@ class CreateCardViewModel(
 
     fun updateTitle(newTitle: String) {
         _title.value = newTitle
+        checkTitleUniqueness(newTitle)
     }
 
     fun updateOption(index: Int, text: String) {
         if (index in _options.indices) {
             _options[index] = text
+            checkDuplicateOptions()
         }
+    }
+    private fun checkDuplicateOptions() {
+        val duplicates = mutableSetOf<Int>()
+        _options.forEachIndexed { index, option ->
+            if (option.isNotBlank() && _options.indexOfFirst { it.equals(option, ignoreCase = true) } != index) {
+                duplicates.add(index)
+            }
+        }
+        _duplicateOptionIndices.value = duplicates
     }
 
     fun addOption() {
@@ -123,6 +148,11 @@ class CreateCardViewModel(
                 _showErrorDialog.value = true
                 return false
             }
+            !_isTitleUnique.value -> {
+                _errorMessage.value = "A flash card with this title already exists."
+                _showErrorDialog.value = true
+                return false
+            }
             nonEmptyOptionsCount < 2 -> {
                 _errorMessage.value = "A flash card must have at least 2 non-empty answers."
                 _showErrorDialog.value = true
@@ -130,6 +160,11 @@ class CreateCardViewModel(
             }
             validCorrectOptions == 0 -> {
                 _errorMessage.value = "A flash card must have at least 1 correct non-empty answer."
+                _showErrorDialog.value = true
+                return false
+            }
+            _duplicateOptionIndices.value.isNotEmpty() -> {
+                _errorMessage.value = "A flash card cannot have duplicate options."
                 _showErrorDialog.value = true
                 return false
             }

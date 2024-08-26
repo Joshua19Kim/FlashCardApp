@@ -1,15 +1,19 @@
 package nz.ac.canterbury.seng303.assg1
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,7 +56,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +72,7 @@ import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayerNameViewModel
+import nz.ac.canterbury.seng303.lab2.R
 
 
 class MainActivity : ComponentActivity() {
@@ -112,6 +120,23 @@ class MainActivity : ComponentActivity() {
                         NavHost(navController = navController, startDestination = "Home") {
                             composable("Home") {
                                 Home(navController = navController)
+                            }
+
+                            composable("LogoSplash/{playerName}/{shuffleEnabled}",
+                                arguments = listOf(
+                                    navArgument("playerName") { type = NavType.StringType },
+                                    navArgument("shuffleEnabled") { type = NavType.BoolType }
+                                )
+                            ) { backStackEntry ->
+                                val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
+                                val shuffleEnabled = backStackEntry.arguments?.getBoolean("shuffleEnabled") ?: false
+                                LogoSplashScreen(
+                                    onSplashComplete = {
+                                        navController.navigate("PlayCard/$playerName/$shuffleEnabled") {
+                                            popUpTo("LogoSplash/{playerName}/{shuffleEnabled}") { inclusive = true }
+                                        }
+                                    }
+                                )
                             }
 
                             composable("cardList") {
@@ -167,7 +192,7 @@ class MainActivity : ComponentActivity() {
                             ) { backStackEntry ->
                                 val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
                                 val shuffleEnabled = backStackEntry.arguments?.getBoolean("shuffleEnabled") ?: false
-                                val playCardViewModel: PlayCardViewModel by viewModel()
+                                val playCardViewModel: PlayCardViewModel = koinViewModel()
                                 LaunchedEffect(Unit) {
                                     playCardViewModel.resetGameState(shuffleEnabled)
                                 }
@@ -237,6 +262,43 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+@Composable
+fun LogoSplashScreen(onSplashComplete: () -> Unit) {
+    var startAnimation by remember { mutableStateOf(false) }
+    val alphaAnimation = animateFloatAsState(
+        targetValue = if (startAnimation) 2f else 1f,
+        animationSpec = tween(durationMillis = 1300)
+    )
+    val sizeAnimation = animateFloatAsState(
+        targetValue = if (startAnimation) 0.5f else 1f,
+        animationSpec = tween(durationMillis = 1300)
+    )
+
+    LaunchedEffect(Unit) {
+        startAnimation = true
+        delay(1300)
+        onSplashComplete()
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.fcapplogo),
+            contentDescription = "Logo",
+            modifier = Modifier
+                .size(1000.dp)
+                .alpha(alphaAnimation.value)
+                .graphicsLayer(
+                    scaleX = sizeAnimation.value,
+                    scaleY = sizeAnimation.value
+                )
+        )
+    }
+}
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -326,7 +388,7 @@ fun Home(
                                 )
                             }
                         } else {
-                            navController.navigate("PlayCard/${playerName}/${shuffleEnabled}")
+                            navController.navigate("LogoSplash/$playerName/$shuffleEnabled")
                         }
                     },
                     modifier = Modifier.size(200.dp),
