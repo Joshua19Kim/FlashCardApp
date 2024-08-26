@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import nz.ac.canterbury.seng303.assg1.datastore.Storage
 import nz.ac.canterbury.seng303.assg1.models.Card
@@ -18,6 +20,41 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
 
     private val _correctOptionIndices = mutableStateOf(setOf<Int>())
     val correctOptionIndices: Set<Int> get() = _correctOptionIndices.value
+
+    private val _showCancelDialog = mutableStateOf(false)
+    val showCancelDialog: Boolean get() = _showCancelDialog.value
+
+    private val _showDeleteDialog = mutableStateOf(false)
+    val showDeleteDialog: Boolean get() = _showDeleteDialog.value
+
+    private val _deleteSuccess = MutableStateFlow(false)
+    val deleteSuccess: StateFlow<Boolean> = _deleteSuccess
+
+    fun showDeleteDialog() {
+        _showDeleteDialog.value = true
+    }
+
+    fun dismissDeleteDialog() {
+        _showDeleteDialog.value = false
+    }
+
+    fun deleteCard(cardId: Int) {
+        viewModelScope.launch {
+            cardStorage.delete(cardId).collect { result ->
+                if (result == 1) {
+                    _deleteSuccess.value = true
+                }
+            }
+        }
+    }
+
+    fun showCancelDialog() {
+        _showCancelDialog.value = true
+    }
+
+    fun dismissCancelDialog() {
+        _showCancelDialog.value = false
+    }
 
     fun updateTitle(newTitle: String) {
         _title.value = newTitle
@@ -71,7 +108,6 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
     private val _errorMessage = mutableStateOf<String?>(null)
     val errorMessage: String? get() = _errorMessage.value
     private val _showErrorDialog = mutableStateOf(false)
-    val showErrorDialog: Boolean get() = _showErrorDialog.value
 
     fun validateAndSaveCard(): Boolean {
         val nonEmptyOptionsCount = _options.count { it.isNotBlank() }
@@ -103,18 +139,12 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
             }
         }
     }
-    fun dismissErrorDialog() {
-        _showErrorDialog.value = false
-    }
-
 
     fun saveCard() {
         createCard()?.let { card ->
             viewModelScope.launch {
                 cardStorage.insert(card).collect { result ->
                     if (result == 1) {
-                        // Card saved successfully
-                        // You might want to clear the form or navigate away
                     }
                 }
             }
@@ -145,8 +175,7 @@ class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() 
             viewModelScope.launch {
                 cardStorage.edit(id, card).collect { result ->
                     if (result == 1) {
-                        // Card updated successfully
-                        // You might want to clear the form or navigate away
+
                     }
                 }
             }

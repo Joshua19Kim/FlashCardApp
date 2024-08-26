@@ -1,9 +1,12 @@
 package nz.ac.canterbury.seng303.assg1.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,12 +24,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
-import nz.ac.canterbury.seng303.assg1.models.Card
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,23 +38,45 @@ import org.koin.androidx.compose.koinViewModel
 fun EditCardScreen(
     cardId: Int,
     onCardEdited: () -> Unit,
+    onCardDeleted: () -> Unit,
     viewModel: CreateCardViewModel = koinViewModel(),
 ) {
     LaunchedEffect(cardId) {
         viewModel.loadCard(cardId)
     }
+    val deleteSuccess by viewModel.deleteSuccess.collectAsState()
 
+    LaunchedEffect(deleteSuccess) {
+        if (deleteSuccess) {
+            onCardDeleted()
+        }
+    }
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text(
-            text = "Edit flash card",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Edit flash card",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { viewModel.showDeleteDialog() }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete card",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = viewModel.title,
@@ -120,21 +146,32 @@ fun EditCardScreen(
                 if (viewModel.validateAndSaveCard()) {
                     viewModel.updateCard(cardId)
                     onCardEdited()
+                } else {
+                    Toast.makeText(context, viewModel.errorMessage, Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Save Changes")
         }
-
-        if (viewModel.showErrorDialog) {
+        if (viewModel.showDeleteDialog) {
             AlertDialog(
-                onDismissRequest = { viewModel.dismissErrorDialog() },
-                title = { Text("Error") },
-                text = { Text(viewModel.errorMessage ?: "") },
+                onDismissRequest = { viewModel.dismissDeleteDialog() },
+                title = { Text("Confirm Deletion") },
+                text = { Text("Do you really want to delete this card?") },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.dismissErrorDialog() }) {
-                        Text("OK")
+                    TextButton(
+                        onClick = {
+                            viewModel.dismissDeleteDialog()
+                            viewModel.deleteCard(cardId)
+                        }
+                    ) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissDeleteDialog() }) {
+                        Text("No")
                     }
                 }
             )

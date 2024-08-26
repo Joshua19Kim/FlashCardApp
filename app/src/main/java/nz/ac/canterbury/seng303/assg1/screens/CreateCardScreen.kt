@@ -1,5 +1,6 @@
 package nz.ac.canterbury.seng303.assg1.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -18,19 +20,35 @@ import org.koin.androidx.compose.koinViewModel
 fun CreateCardScreen(
     viewModel: CreateCardViewModel = koinViewModel(),
     onCreateCardClick: () -> Unit,
-
+    onCancelCard: () -> Unit
 ) {
+
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text(
-            text = "Create a new flash card",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Create a new flash card",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { viewModel.showCancelDialog() }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Cancel card creation",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = viewModel.title,
@@ -100,20 +118,32 @@ fun CreateCardScreen(
             onClick = {
                 if (viewModel.validateAndSaveCard()) {
                     onCreateCardClick()
+                } else {
+                    Toast.makeText(context, viewModel.errorMessage, Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Save Card and Return")
         }
-        if (viewModel.showErrorDialog) {
+        if (viewModel.showCancelDialog) {
             AlertDialog(
-                onDismissRequest = { viewModel.dismissErrorDialog() },
-                title = { Text("Error") },
-                text = { Text(viewModel.errorMessage ?: "") },
+                onDismissRequest = { viewModel.dismissCancelDialog() },
+                title = { Text("Cancel Card Creation") },
+                text = { Text("Do you want to cancel this card?") },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.dismissErrorDialog() }) {
-                        Text("OK")
+                    TextButton(
+                        onClick = {
+                            viewModel.dismissCancelDialog()
+                            onCancelCard()
+                        }
+                    ) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissCancelDialog() }) {
+                        Text("No")
                     }
                 }
             )

@@ -4,8 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -46,14 +45,12 @@ import nz.ac.canterbury.seng303.assg1.screens.CardListScreen
 import nz.ac.canterbury.seng303.assg1.screens.CreateCardScreen
 import nz.ac.canterbury.seng303.assg1.screens.EditCardScreen
 import nz.ac.canterbury.seng303.assg1.ui.theme.Assg1Theme
-import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -117,6 +114,11 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("Home") {
                                             popUpTo("Home") { inclusive = true }
                                         }
+                                    },
+                                    onCancelCard = {
+                                        navController.navigate("Home") {
+                                            popUpTo("Home") { inclusive = true }
+                                        }
                                     }
                                 )
                             }
@@ -129,7 +131,12 @@ class MainActivity : ComponentActivity() {
                                 if (cardId != null) {
                                     EditCardScreen(
                                         cardId = cardId,
-                                        onCardEdited = { navController.popBackStack() }
+                                        onCardEdited = { navController.popBackStack() },
+                                        onCardDeleted = {
+                                            navController.navigate("cardList") {
+                                                popUpTo("cardList") { inclusive = true }
+                                            }
+                                        }
                                     )
                                 } else {
                                     Text("Error: Card not found")
