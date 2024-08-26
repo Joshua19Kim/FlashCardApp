@@ -1,5 +1,6 @@
 package nz.ac.canterbury.seng303.assg1.viewmodels
 
+import android.os.Parcelable
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -8,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
 import nz.ac.canterbury.seng303.assg1.datastore.Storage
 import nz.ac.canterbury.seng303.assg1.models.Card
 
@@ -16,6 +18,40 @@ class PlayCardViewModel(
     private val playerNameViewModel: PlayerNameViewModel
 ) : ViewModel() {
     val playerName = playerNameViewModel.playerName
+
+
+    private val _gameState = MutableStateFlow<GameState>(GameState.NotStarted)
+    val gameState: StateFlow<GameState> = _gameState
+
+    fun saveGameState() {
+        val currentState = GameState.InProgress(
+            cards = _cards.value,
+            currentCardIndex = _currentCardIndex.value,
+            selectedOptions = _selectedOptions.value,
+            gameResults = _gameResults.value,
+            shuffleEnabled = _shuffleEnabled.value
+        )
+        _gameState.value = currentState
+    }
+
+    fun startNewGame(shuffleEnabled: Boolean) {
+        viewModelScope.launch {
+            _shuffleEnabled.value = shuffleEnabled
+            resetState()
+            val cardList = cardStorage.getAll().first()
+            _cards.value = if (shuffleEnabled) cardList.shuffled() else cardList
+            _currentCardIndex.value = 0
+            updateProgress()
+            _gameState.value = GameState.InProgress(
+                cards = _cards.value,
+                currentCardIndex = _currentCardIndex.value,
+                selectedOptions = _selectedOptions.value,
+                gameResults = _gameResults.value,
+                shuffleEnabled = _shuffleEnabled.value
+            )
+        }
+    }
+
 
     private val _answerFeedback = MutableStateFlow<Pair<Boolean, Boolean>?>(null)
     val answerFeedback: StateFlow<Pair<Boolean, Boolean>?> = _answerFeedback
@@ -45,7 +81,6 @@ class PlayCardViewModel(
     val isOptionSelected: StateFlow<Boolean> = _isOptionSelected
 
     private val _showExitConfirmation = MutableStateFlow(false)
-    val showExitConfirmation: StateFlow<Boolean> = _showExitConfirmation
 
     init {
         loadCards()
@@ -56,7 +91,7 @@ class PlayCardViewModel(
         loadCards()
     }
 
-    private fun loadCards() {
+    fun loadCards() {
         viewModelScope.launch {
             val cardList = cardStorage.getAll().first()
             _cards.value = if (_shuffleEnabled.value) cardList.shuffled() else cardList
@@ -65,11 +100,6 @@ class PlayCardViewModel(
         }
     }
 
-    private fun shuffleCards() {
-        _cards.value = _cards.value.shuffled()
-        _currentCardIndex.value = 0
-        updateProgress()
-    }
 
     fun toggleOption(optionId: Int) {
         _selectedOptions.value = _selectedOptions.value.toMutableSet().apply {
@@ -111,7 +141,16 @@ class PlayCardViewModel(
         _isOptionSelected.value = false
         _showExitConfirmation.value = false
     }
-
+    fun resetGame() {
+        _gameState.value = GameState.NotStarted
+        _currentCardIndex.value = 0
+        _selectedOptions.value = emptySet()
+        _gameResults.value = emptyList()
+        _gameFinished.value = false
+        _isOptionSelected.value = false
+        _showExitConfirmation.value = false
+        loadCards()
+    }
     fun restartGame() {
         resetState()
         loadCards()
@@ -123,19 +162,22 @@ class PlayCardViewModel(
         loadCards()
 
     }
-    fun onTryExit() {
-        _showExitConfirmation.value = true
-        Log.d("PlayCardViewModel", "onTryExit called, showExitConfirmation set to true")
-    }
 
-    fun onExitConfirmed() {
-        _showExitConfirmation.value = false
-        Log.d("PlayCardViewModel", "onExitConfirmed called, showExitConfirmation set to false")
-    }
+}
 
-    fun onExitCancelled() {
-        _showExitConfirmation.value = false
-        Log.d("PlayCardViewModel", "onExitCancelled called, showExitConfirmation set to false")
-    }
+sealed class GameState : Parcelable {
+    @Parcelize
+    object NotStarted : GameState()
 
+    @Parcelize
+    data class InProgress(
+        val cards: List<Card>,
+        val currentCardIndex: Int,
+        val selectedOptions: Set<Int>,
+        val gameResults: List<Pair<Card, Boolean>>,
+        val shuffleEnabled: Boolean
+    ) : GameState()
+
+    @Parcelize
+    object Finished : GameState()
 }

@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import nz.ac.canterbury.seng303.assg1.models.Card
+import nz.ac.canterbury.seng303.assg1.viewmodels.GameState
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -35,8 +36,9 @@ fun PlayCardScreen(
     val answerFeedback by viewModel.answerFeedback.collectAsState()
     var showExitDialog by remember { mutableStateOf(false) }
 
-    val navController = rememberNavController()
+    val gameState by viewModel.gameState.collectAsState()
 
+    val navController = rememberNavController()
     val context = LocalContext.current
 
     BackHandler {
@@ -46,6 +48,32 @@ fun PlayCardScreen(
             Toast.makeText(context, "Sorry, you cannot go back to the previous question.", Toast.LENGTH_SHORT).show()
         }
     }
+
+    LaunchedEffect(Unit) {
+        if (gameState is GameState.NotStarted) {
+            viewModel.loadCards()
+        }
+    }
+
+
+    LaunchedEffect(gameState) {
+        when (gameState) {
+            is GameState.NotStarted -> viewModel.loadCards()
+            is GameState.InProgress -> {
+                // State is already restored, do nothing
+            }
+            is GameState.Finished -> {
+                // Handle finished state if needed
+            }
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.saveGameState()
+        }
+    }
+
+
     LaunchedEffect(answerFeedback) {
         answerFeedback?.let { (isCorrect, isLastCard) ->
             val message = when {

@@ -1,7 +1,9 @@
 package nz.ac.canterbury.seng303.assg1
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -70,16 +72,25 @@ import nz.ac.canterbury.seng303.assg1.screens.PlayCardScreen
 import nz.ac.canterbury.seng303.assg1.viewmodels.CardViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
 import kotlinx.coroutines.launch
+import nz.ac.canterbury.seng303.assg1.viewmodels.GameState
 import org.koin.androidx.compose.koinViewModel
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayerNameViewModel
 import nz.ac.canterbury.seng303.lab2.R
 
 
 class MainActivity : ComponentActivity() {
+    private lateinit var playCardViewModel: PlayCardViewModel
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        handleConfigurationChanges()
+
+        val playCardViewModel: PlayCardViewModel by viewModel()
+        this.playCardViewModel = playCardViewModel
+
+
         setContent {
             Assg1Theme {
                 val navController = rememberNavController()
@@ -192,10 +203,13 @@ class MainActivity : ComponentActivity() {
                             ) { backStackEntry ->
                                 val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
                                 val shuffleEnabled = backStackEntry.arguments?.getBoolean("shuffleEnabled") ?: false
-                                val playCardViewModel: PlayCardViewModel = koinViewModel()
+
+                                val viewModel: PlayCardViewModel = koinViewModel()
+
                                 LaunchedEffect(Unit) {
-                                    playCardViewModel.resetGameState(shuffleEnabled)
+                                    playCardViewModel.startNewGame(shuffleEnabled)
                                 }
+
                                 PlayCardScreen(
                                     viewModel = playCardViewModel,
                                     onGameFinished = {
@@ -215,6 +229,7 @@ class MainActivity : ComponentActivity() {
                                 confirmButton = {
                                     TextButton(onClick = {
                                         showPlayExitConfirmation = false
+                                        playCardViewModel.resetGame()
                                         navController.popBackStack()
                                     }) {
                                         Text("Yes, Exit")
@@ -254,13 +269,31 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-
                     }
                 }
-
             }
         }
     }
+    private fun handleConfigurationChanges() {
+        val configChanges = ActivityInfo.CONFIG_ORIENTATION or
+                ActivityInfo.CONFIG_SCREEN_SIZE or
+                ActivityInfo.CONFIG_KEYBOARD_HIDDEN
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Save the current game state
+        val playCardViewModel: PlayCardViewModel by viewModel()
+        val currentState = playCardViewModel.gameState.value
+        if (currentState is GameState.InProgress) {
+            outState.putParcelable("gameState", currentState)
+        }
+    }
+
+
+
 }
 
 @Composable
