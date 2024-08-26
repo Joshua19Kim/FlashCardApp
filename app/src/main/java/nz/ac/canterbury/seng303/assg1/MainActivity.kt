@@ -76,13 +76,27 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val currentBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = currentBackStackEntry?.destination?.route ?: "Home"
+                var showPlayExitConfirmation by remember { mutableStateOf(false) }
+                var showCreateExitConfirmation by remember { mutableStateOf(false) }
+                var showEditExitConfirmation by remember { mutableStateOf(false) }
+
                 Scaffold(
                     topBar = {
                         TopAppBar(
                             title = { Text("Flash Card 303") },
                             navigationIcon = {
                                 if (currentRoute != "Home") {
-                                    IconButton(onClick = { navController.popBackStack() }) {
+                                    IconButton(onClick = {
+                                        if (currentRoute.startsWith("PlayCard")) {
+                                            showPlayExitConfirmation = true
+                                        } else if (currentRoute.startsWith("CreateCard")) {
+                                            showCreateExitConfirmation = true
+                                        } else if (currentRoute.startsWith("EditCard")) {
+                                            showEditExitConfirmation = true
+                                        } else {
+                                            navController.popBackStack()
+                                        }
+                                    }) {
                                         Icon(
                                             imageVector = Icons.Default.ArrowBack,
                                             contentDescription = "Back"
@@ -165,9 +179,56 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             }
-
-
                         }
+
+                        if (showPlayExitConfirmation) {
+                            AlertDialog(
+                                onDismissRequest = { showPlayExitConfirmation = false },
+                                title = { Text("Confirm Exit") },
+                                text = { Text("Do you really want to exit? Your progress will be lost.") },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        showPlayExitConfirmation = false
+                                        navController.popBackStack()
+                                    }) {
+                                        Text("Yes, Exit")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showPlayExitConfirmation = false }) {
+                                        Text("No, Continue")
+                                    }
+                                }
+                            )
+                        }
+                        if (showCreateExitConfirmation || showEditExitConfirmation) {
+                            AlertDialog(
+                                onDismissRequest = {
+                                    showCreateExitConfirmation = false
+                                    showEditExitConfirmation = false
+                                                   },
+                                title = { Text("Confirm Exit") },
+                                text = { Text("Do you really want to exit?") },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        showCreateExitConfirmation = false
+                                        showEditExitConfirmation = false
+                                        navController.popBackStack()
+                                    }) {
+                                        Text("Yes, Exit")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = {
+                                        showCreateExitConfirmation = false
+                                        showEditExitConfirmation = false
+                                    }) {
+                                        Text("No, Continue")
+                                    }
+                                }
+                            )
+                        }
+
                     }
                 }
 

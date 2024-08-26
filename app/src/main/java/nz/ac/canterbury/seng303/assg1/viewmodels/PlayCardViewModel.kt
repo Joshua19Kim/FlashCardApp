@@ -17,6 +17,9 @@ class PlayCardViewModel(
 ) : ViewModel() {
     val playerName = playerNameViewModel.playerName
 
+    private val _answerFeedback = MutableStateFlow<Pair<Boolean, Boolean>?>(null)
+    val answerFeedback: StateFlow<Pair<Boolean, Boolean>?> = _answerFeedback
+
     private val _shuffleEnabled = MutableStateFlow(false)
     val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled
 
@@ -50,7 +53,6 @@ class PlayCardViewModel(
 
     fun toggleShuffle() {
         _shuffleEnabled.value = !_shuffleEnabled.value
-        Log.d("PlayCardViewModel", "Shuffle toggled: ${if (_shuffleEnabled.value) "ON" else "OFF"}")
         loadCards()
     }
 
@@ -60,7 +62,6 @@ class PlayCardViewModel(
             _cards.value = if (_shuffleEnabled.value) cardList.shuffled() else cardList
             _currentCardIndex.value = 0
             updateProgress()
-            Log.d("PlayCardViewModel", "Cards loaded. Shuffle is ${if (_shuffleEnabled.value) "ON" else "OFF"}")
         }
     }
 
@@ -82,6 +83,8 @@ class PlayCardViewModel(
         val isCorrect = _selectedOptions.value == currentCard.correctOptionId
         _gameResults.value += currentCard to isCorrect
 
+        _answerFeedback.value = isCorrect to (_currentCardIndex.value == _cards.value.size - 1)
+
         if (_currentCardIndex.value < _cards.value.size - 1) {
             _currentCardIndex.value++
             _selectedOptions.value = emptySet()
@@ -90,6 +93,10 @@ class PlayCardViewModel(
             _gameFinished.value = true
         }
         updateProgress()
+    }
+
+    fun clearAnswerFeedback() {
+        _answerFeedback.value = null
     }
 
     private fun updateProgress() {
@@ -108,28 +115,27 @@ class PlayCardViewModel(
     fun restartGame() {
         resetState()
         loadCards()
-        Log.d("PlayCardViewModel", "Game restarted. Shuffle is ${if (_shuffleEnabled.value) "ON" else "OFF"}")
     }
 
     fun resetGameState(shuffleEnabled: Boolean) {
         _shuffleEnabled.value = shuffleEnabled
         resetState()
         loadCards()
-        Log.d(
-            "PlayCardViewModel",
-            "Game state reset. Shuffle is ${if (_shuffleEnabled.value) "ON" else "OFF"}"
-        )
 
     }
     fun onTryExit() {
         _showExitConfirmation.value = true
+        Log.d("PlayCardViewModel", "onTryExit called, showExitConfirmation set to true")
     }
 
     fun onExitConfirmed() {
         _showExitConfirmation.value = false
+        Log.d("PlayCardViewModel", "onExitConfirmed called, showExitConfirmation set to false")
     }
 
     fun onExitCancelled() {
         _showExitConfirmation.value = false
+        Log.d("PlayCardViewModel", "onExitCancelled called, showExitConfirmation set to false")
     }
+
 }

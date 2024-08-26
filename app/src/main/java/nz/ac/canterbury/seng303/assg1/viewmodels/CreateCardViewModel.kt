@@ -11,7 +11,9 @@ import kotlinx.coroutines.launch
 import nz.ac.canterbury.seng303.assg1.datastore.Storage
 import nz.ac.canterbury.seng303.assg1.models.Card
 
-class CreateCardViewModel(private val cardStorage: Storage<Card>) : ViewModel() {
+class CreateCardViewModel(
+    private val cardStorage: Storage<Card>
+) : ViewModel() {
     private val _title = mutableStateOf("")
     val title: String get() = _title.value
 

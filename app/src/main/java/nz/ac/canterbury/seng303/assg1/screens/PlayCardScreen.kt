@@ -1,5 +1,7 @@
 package nz.ac.canterbury.seng303.assg1.screens
 
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,12 +30,25 @@ fun PlayCardScreen(
     val gameFinished by viewModel.gameFinished.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val isOptionSelected by viewModel.isOptionSelected.collectAsState()
-    val showExitConfirmation by viewModel.showExitConfirmation.collectAsState()
     val playerName by viewModel.playerName.collectAsState()
+    val answerFeedback by viewModel.answerFeedback.collectAsState()
 
-    BackHandler {
-        viewModel.onTryExit()
+    val context = LocalContext.current
+
+    LaunchedEffect(answerFeedback) {
+        answerFeedback?.let { (isCorrect, isLastCard) ->
+            val message = when {
+                isCorrect && isLastCard -> "Correct! You've completed the game!"
+                isCorrect -> "Correct! Moving to the next card."
+                isLastCard -> "Incorrect. This was the last card."
+                else -> "Incorrect. Moving to the next card."
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.clearAnswerFeedback()
+        }
     }
+
+
     if (cards.isEmpty()) {
         AlertDialog(
             onDismissRequest = onGameFinished,
@@ -92,27 +108,6 @@ fun PlayCardScreen(
                 viewModel.restartGame()
             },
             onFinish = onGameFinished
-        )
-    }
-
-    if (showExitConfirmation) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onExitCancelled() },
-            title = { Text("Confirm Exit") },
-            text = { Text("Do you really want to exit? Your progress will be lost.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.onExitConfirmed()
-                    onGameFinished()
-                }) {
-                    Text("Yes, Exit")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onExitCancelled() }) {
-                    Text("No, Continue")
-                }
-            }
         )
     }
 }
