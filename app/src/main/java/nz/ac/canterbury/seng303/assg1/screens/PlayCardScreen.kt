@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.rememberNavController
 import nz.ac.canterbury.seng303.assg1.models.Card
 import nz.ac.canterbury.seng303.assg1.viewmodels.PlayCardViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -32,9 +33,19 @@ fun PlayCardScreen(
     val isOptionSelected by viewModel.isOptionSelected.collectAsState()
     val playerName by viewModel.playerName.collectAsState()
     val answerFeedback by viewModel.answerFeedback.collectAsState()
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    val navController = rememberNavController()
 
     val context = LocalContext.current
 
+    BackHandler {
+        if (currentCardIndex == 0) {
+            showExitDialog = true
+        } else {
+            Toast.makeText(context, "Sorry, you cannot go back to the previous question.", Toast.LENGTH_SHORT).show()
+        }
+    }
     LaunchedEffect(answerFeedback) {
         answerFeedback?.let { (isCorrect, isLastCard) ->
             val message = when {
@@ -46,6 +57,30 @@ fun PlayCardScreen(
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             viewModel.clearAnswerFeedback()
         }
+    }
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Confirmation") },
+            text = { Text("Do you want to exit?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExitDialog = false
+                    if (currentCardIndex == 0) {
+                        navController.navigate("Home")
+                    }
+                }) {
+                    Text(if (currentCardIndex == 0) "Yes, Exit" else "OK")
+                }
+            },
+            dismissButton = {
+                if (currentCardIndex == 0) {
+                    TextButton(onClick = { showExitDialog = false }) {
+                        Text("No, Continue")
+                    }
+                }
+            }
+        )
     }
 
 
@@ -156,7 +191,7 @@ fun GameResultScreen(
                 Text("Play Again")
             }
             Button(onClick = onFinish) {
-                Text("Finish")
+                Text("Back to home")
             }
         }
     }

@@ -1,6 +1,7 @@
 package nz.ac.canterbury.seng303.assg1.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,10 +9,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.rememberNavController
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -22,8 +28,13 @@ fun CreateCardScreen(
     onCreateCardClick: () -> Unit,
     onCancelCard: () -> Unit
 ) {
-
+    val navController = rememberNavController()
+    var showCreateExitConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    BackHandler {
+        showCreateExitConfirmation = true
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -144,6 +155,27 @@ fun CreateCardScreen(
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissCancelDialog() }) {
                         Text("No")
+                    }
+                }
+            )
+        }
+
+        if (showCreateExitConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showCreateExitConfirmation = false },
+                title = { Text("Confirm Exit") },
+                text = { Text("Do you really want to exit? Your progress will be lost.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showCreateExitConfirmation = false
+                        navController.navigate("Home")
+                    }) {
+                        Text("Yes, Exit")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateExitConfirmation = false }) {
+                        Text("No, Continue")
                     }
                 }
             )

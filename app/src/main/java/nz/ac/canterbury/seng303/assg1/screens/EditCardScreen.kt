@@ -1,6 +1,7 @@
 package nz.ac.canterbury.seng303.assg1.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,11 +27,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import nz.ac.canterbury.seng303.assg1.viewmodels.CreateCardViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.rememberNavController
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,11 +45,18 @@ fun EditCardScreen(
     onCardEdited: () -> Unit,
     onCardDeleted: () -> Unit,
     viewModel: CreateCardViewModel = koinViewModel(),
+
 ) {
+    val navController = rememberNavController()
+    var showEditExitConfirmation by remember { mutableStateOf(false) }
+    val deleteSuccess by viewModel.deleteSuccess.collectAsState()
+
+    BackHandler {
+        showEditExitConfirmation = true
+    }
     LaunchedEffect(cardId) {
         viewModel.loadCard(cardId)
     }
-    val deleteSuccess by viewModel.deleteSuccess.collectAsState()
 
     LaunchedEffect(deleteSuccess) {
         if (deleteSuccess) {
@@ -172,6 +184,27 @@ fun EditCardScreen(
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissDeleteDialog() }) {
                         Text("No")
+                    }
+                }
+            )
+        }
+
+        if (showEditExitConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showEditExitConfirmation = false },
+                title = { Text("Confirm Exit") },
+                text = { Text("Do you really want to exit? Your progress will be lost.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showEditExitConfirmation = false
+                        navController.navigate("Home")
+                    }) {
+                        Text("Yes, Exit")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditExitConfirmation = false }) {
+                        Text("No, Continue")
                     }
                 }
             )

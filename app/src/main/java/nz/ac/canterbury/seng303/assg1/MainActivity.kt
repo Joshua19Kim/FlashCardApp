@@ -2,6 +2,7 @@ package nz.ac.canterbury.seng303.assg1
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 
@@ -255,6 +256,11 @@ fun Home(
     val scope = rememberCoroutineScope()
     var showShuffleMessage by remember { mutableStateOf(false) }
     val shuffleEnabled by playCardViewModel.shuffleEnabled.collectAsState()
+
+    BackHandler {
+
+    }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
