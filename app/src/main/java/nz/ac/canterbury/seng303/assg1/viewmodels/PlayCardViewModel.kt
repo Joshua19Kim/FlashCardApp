@@ -1,7 +1,6 @@
 package nz.ac.canterbury.seng303.assg1.viewmodels
 
 import android.os.Parcelable
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,6 +18,11 @@ class PlayCardViewModel(
 ) : ViewModel() {
     val playerName = playerNameViewModel.playerName
 
+    private val _shuffleCardsEnabled = MutableStateFlow(false)
+    val shuffleCardsEnabled: StateFlow<Boolean> = _shuffleCardsEnabled
+
+    private val _shuffleOptionsEnabled = MutableStateFlow(false)
+    val shuffleOptionsEnabled: StateFlow<Boolean> = _shuffleOptionsEnabled
 
     private val _gameState = MutableStateFlow<GameState>(GameState.NotStarted)
     val gameState: StateFlow<GameState> = _gameState
@@ -29,25 +33,25 @@ class PlayCardViewModel(
             currentCardIndex = _currentCardIndex.value,
             selectedOptions = _selectedOptions.value,
             gameResults = _gameResults.value,
-            shuffleEnabled = _shuffleEnabled.value
+            shuffleCardsEnabled = _shuffleCardsEnabled.value,
+            shuffleOptionsEnabled = _shuffleOptionsEnabled.value
         )
         _gameState.value = currentState
     }
 
-    fun startNewGame(shuffleEnabled: Boolean) {
+    fun startNewGame(shuffleCardsEnabled: Boolean, shuffleOptionsEnabled: Boolean) {
         viewModelScope.launch {
-            _shuffleEnabled.value = shuffleEnabled
+            _shuffleCardsEnabled.value = shuffleCardsEnabled
+            _shuffleOptionsEnabled.value = shuffleOptionsEnabled
             resetState()
-            val cardList = cardStorage.getAll().first()
-            _cards.value = if (shuffleEnabled) cardList.shuffled() else cardList
-            _currentCardIndex.value = 0
-            updateProgress()
+            loadCards()
             _gameState.value = GameState.InProgress(
                 cards = _cards.value,
                 currentCardIndex = _currentCardIndex.value,
                 selectedOptions = _selectedOptions.value,
                 gameResults = _gameResults.value,
-                shuffleEnabled = _shuffleEnabled.value
+                shuffleCardsEnabled = _shuffleCardsEnabled.value,
+                shuffleOptionsEnabled = _shuffleOptionsEnabled.value
             )
         }
     }
@@ -56,8 +60,7 @@ class PlayCardViewModel(
     private val _answerFeedback = MutableStateFlow<Pair<Boolean, Boolean>?>(null)
     val answerFeedback: StateFlow<Pair<Boolean, Boolean>?> = _answerFeedback
 
-    private val _shuffleEnabled = MutableStateFlow(false)
-    val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled
+
 
     private val _cards = MutableStateFlow<List<Card>>(emptyList())
     val cards: StateFlow<List<Card>> = _cards
@@ -86,20 +89,32 @@ class PlayCardViewModel(
         loadCards()
     }
 
-    fun toggleShuffle() {
-        _shuffleEnabled.value = !_shuffleEnabled.value
+    fun toggleShuffleCards() {
+        _shuffleCardsEnabled.value = !_shuffleCardsEnabled.value
+        loadCards()
+    }
+
+    fun toggleShuffleOptions() {
+        _shuffleOptionsEnabled.value = !_shuffleOptionsEnabled.value
         loadCards()
     }
 
     fun loadCards() {
         viewModelScope.launch {
-            val cardList = cardStorage.getAll().first()
-            _cards.value = if (_shuffleEnabled.value) cardList.shuffled() else cardList
+            var cardList = cardStorage.getAll().first()
+            if (_shuffleCardsEnabled.value) {
+                cardList = cardList.shuffled()
+            }
+            if (_shuffleOptionsEnabled.value) {
+                cardList = cardList.map { card ->
+                    card.copy(options = card.options.shuffled())
+                }
+            }
+            _cards.value = cardList
             _currentCardIndex.value = 0
             updateProgress()
         }
     }
-
 
     fun toggleOption(optionId: Int) {
         _selectedOptions.value = _selectedOptions.value.toMutableSet().apply {
@@ -156,13 +171,6 @@ class PlayCardViewModel(
         loadCards()
     }
 
-    fun resetGameState(shuffleEnabled: Boolean) {
-        _shuffleEnabled.value = shuffleEnabled
-        resetState()
-        loadCards()
-
-    }
-
 }
 
 sealed class GameState : Parcelable {
@@ -175,7 +183,8 @@ sealed class GameState : Parcelable {
         val currentCardIndex: Int,
         val selectedOptions: Set<Int>,
         val gameResults: List<Pair<Card, Boolean>>,
-        val shuffleEnabled: Boolean
+        val shuffleCardsEnabled: Boolean,
+        val shuffleOptionsEnabled: Boolean
     ) : GameState()
 
     @Parcelize

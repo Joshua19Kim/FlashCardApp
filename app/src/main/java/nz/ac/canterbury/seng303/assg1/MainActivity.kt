@@ -2,7 +2,7 @@ package nz.ac.canterbury.seng303.assg1
 
 import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.util.Log
+import androidx.compose.ui.Alignment
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -15,6 +15,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +41,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -54,6 +55,7 @@ import nz.ac.canterbury.seng303.assg1.screens.EditCardScreen
 import nz.ac.canterbury.seng303.assg1.ui.theme.Assg1Theme
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
@@ -133,18 +135,20 @@ class MainActivity : ComponentActivity() {
                                 Home(navController = navController)
                             }
 
-                            composable("LogoSplash/{playerName}/{shuffleEnabled}",
+                            composable("LogoSplash/{playerName}/{shuffleCardsEnabled}/{shuffleOptionsEnabled}",
                                 arguments = listOf(
                                     navArgument("playerName") { type = NavType.StringType },
-                                    navArgument("shuffleEnabled") { type = NavType.BoolType }
+                                    navArgument("shuffleCardsEnabled") { type = NavType.BoolType },
+                                    navArgument("shuffleOptionsEnabled") { type = NavType.BoolType }
                                 )
                             ) { backStackEntry ->
                                 val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
-                                val shuffleEnabled = backStackEntry.arguments?.getBoolean("shuffleEnabled") ?: false
+                                val shuffleCardsEnabled = backStackEntry.arguments?.getBoolean("shuffleCardsEnabled") ?: false
+                                val shuffleOptionsEnabled = backStackEntry.arguments?.getBoolean("shuffleOptionsEnabled") ?: false
                                 LogoSplashScreen(
                                     onSplashComplete = {
-                                        navController.navigate("PlayCard/$playerName/$shuffleEnabled") {
-                                            popUpTo("LogoSplash/{playerName}/{shuffleEnabled}") { inclusive = true }
+                                        navController.navigate("PlayCard/$playerName/$shuffleCardsEnabled/$shuffleOptionsEnabled") {
+                                            popUpTo("LogoSplash/{playerName}/{shuffleCardsEnabled}/{shuffleOptionsEnabled}") { inclusive = true }
                                         }
                                     }
                                 )
@@ -195,23 +199,25 @@ class MainActivity : ComponentActivity() {
                             }
 
                             composable(
-                                route = "PlayCard/{playerName}/{shuffleEnabled}",
+                                route = "PlayCard/{playerName}/{shuffleCardsEnabled}/{shuffleOptionsEnabled}",
                                 arguments = listOf(
                                     navArgument("playerName") { type = NavType.StringType },
-                                    navArgument("shuffleEnabled") { type = NavType.BoolType }
+                                    navArgument("shuffleCardsEnabled") { type = NavType.BoolType },
+                                    navArgument("shuffleOptionsEnabled") { type = NavType.BoolType }
                                 )
                             ) { backStackEntry ->
                                 val playerName = backStackEntry.arguments?.getString("playerName") ?: ""
-                                val shuffleEnabled = backStackEntry.arguments?.getBoolean("shuffleEnabled") ?: false
+                                val shuffleCardsEnabled = backStackEntry.arguments?.getBoolean("shuffleCardsEnabled") ?: false
+                                val shuffleOptionsEnabled = backStackEntry.arguments?.getBoolean("shuffleOptionsEnabled") ?: false
 
                                 val viewModel: PlayCardViewModel = koinViewModel()
 
                                 LaunchedEffect(Unit) {
-                                    playCardViewModel.startNewGame(shuffleEnabled)
+                                    viewModel.startNewGame(shuffleCardsEnabled, shuffleOptionsEnabled)
                                 }
 
                                 PlayCardScreen(
-                                    viewModel = playCardViewModel,
+                                    viewModel = viewModel,
                                     onGameFinished = {
                                         navController.navigate("Home") {
                                             popUpTo("Home") { inclusive = true }
@@ -349,8 +355,12 @@ fun Home(
     val cards by cardViewModel.cards.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var showShuffleMessage by remember { mutableStateOf(false) }
-    val shuffleEnabled by playCardViewModel.shuffleEnabled.collectAsState()
+    var showShuffleCardsMessage by remember { mutableStateOf(false) }
+    var showShuffleOptionsMessage by remember { mutableStateOf(false) }
+    val shuffleCardsEnabled by playCardViewModel.shuffleCardsEnabled.collectAsState()
+    val shuffleOptionsEnabled by playCardViewModel.shuffleOptionsEnabled.collectAsState()
+    var topToastMessage by remember { mutableStateOf<String?>(null) }
+
 
     BackHandler {
 
@@ -421,7 +431,7 @@ fun Home(
                                 )
                             }
                         } else {
-                            navController.navigate("LogoSplash/$playerName/$shuffleEnabled")
+                            navController.navigate("LogoSplash/$playerName/$shuffleCardsEnabled/$shuffleOptionsEnabled")
                         }
                     },
                     modifier = Modifier.size(200.dp),
@@ -437,7 +447,7 @@ fun Home(
                             contentDescription = "Play",
                             modifier = Modifier.size(130.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(5.dp))
                         Text(
                             text = "PLAY",
                             fontSize = 25.sp,
@@ -447,35 +457,85 @@ fun Home(
 
                 }
 
-                Spacer(modifier = Modifier.height(80.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(16.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Shuffle Cards",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Switch(
+                            checked = shuffleCardsEnabled,
+                            onCheckedChange = {
+                                playCardViewModel.toggleShuffleCards()
+                                if (it) {
+                                    showShuffleCardsMessage = true
+                                } else {
+                                    topToastMessage = "Shuffle Cards disabled"
+                                }
+                            }
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Shuffle Options",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Switch(
+                            checked = shuffleOptionsEnabled,
+                            onCheckedChange = {
+                                playCardViewModel.toggleShuffleOptions()
+                                if (it) {
+                                    showShuffleOptionsMessage = true
+                                } else {
+                                    topToastMessage = "Shuffle Options disabled"
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            AnimatedVisibility(
+                visible = topToastMessage != null,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondary,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(top = 16.dp)
                 ) {
                     Text(
-                        "Shuffle Cards",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Switch(
-                        checked = shuffleEnabled,
-                        onCheckedChange = {
-                            playCardViewModel.toggleShuffle()
-                            if (it) {
-                                showShuffleMessage = true
-                            }
-                        }
+                        text = topToastMessage ?: "",
+                        color = MaterialTheme.colorScheme.onSecondary,
+                        modifier = Modifier.padding(16.dp)
                     )
                 }
-
             }
-
 
         }
     }
+
+
     AnimatedVisibility(
-        visible = showShuffleMessage,
+        visible = showShuffleCardsMessage,
         enter = fadeIn() + expandVertically(),
         exit = fadeOut() + shrinkVertically()
     ) {
@@ -493,12 +553,34 @@ fun Home(
                 fontWeight = FontWeight.Bold
             )
         }
-        LaunchedEffect(showShuffleMessage) {
+        LaunchedEffect(showShuffleCardsMessage) {
             delay(1500)
-            showShuffleMessage = false
+            showShuffleCardsMessage = false
         }
     }
-
+    AnimatedVisibility(
+        visible = showShuffleOptionsMessage,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "Options shuffled!  \n\n\n Let's Play Flash Card!",
+                color = Color.White,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        LaunchedEffect(showShuffleOptionsMessage) {
+            delay(1500)
+            showShuffleOptionsMessage = false
+        }
+    }
 
     if (showNameDialog) {
         AlertDialog(
@@ -535,6 +617,12 @@ fun Home(
                 }
             }
         )
+    }
+    LaunchedEffect(topToastMessage) {
+        if (topToastMessage != null) {
+            delay(2000) // Show the message for 2 seconds
+            topToastMessage = null
+        }
     }
 }
 
